@@ -1,10 +1,13 @@
 const express = require('express')
+const cors = require('cors')
 const app = express()
 const port = 3000
 const { signToken, verifyToken } = require('./helpers/jwt')
 const { comparePassword } = require('./helpers/bcrypt')
 const { Contact, User } = require('./models/index')
+const { Op } = require('sequelize')
 
+app.use(cors())
 app.use(express.urlencoded({extended: false}))
 app.use(express.json())
 
@@ -62,10 +65,37 @@ app.use(async(req, res, next) => {
 })
 
 app.get('/contact', async(req, res, next) => {
+    const {id} = req.user
+    const {query} = req.query
     try {
-        const contacts = await Contact.findAll()
+        let option = {
+            UserId: id
+        }
+        if(query) {
+            option.nama = {
+                [Op.iLike]: `%${query}%`
+            }
+            console.log(option)
+        }
+        const contacts = await Contact.findAll({
+            where: option
+        })
 
         res.status(200).json(contacts)
+    } catch (error) {
+        next(error)
+    }
+})
+
+app.get('/contact/:id', async(req, res, next) => {
+    const contactId = req.params.id
+    try {
+        const contact = await Contact.findOne({where: {id: contactId}})
+        if(!contact) {
+            throw({name: 'ContactNotFound', message: 'Invalid contact id'})
+        }
+
+        res.status(200).json(contact)
     } catch (error) {
         next(error)
     }
